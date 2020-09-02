@@ -1,0 +1,20 @@
+# You may copy this sample config as start point.
+#
+# cp config.example.toml telescope.toml
+
+[Log]
+  ProductionMode = false
+
+[API]
+  Port = 3000
+
+[Database]
+  Host = ""
+  User = ""
+  Password = ""
+  DatabaseName = ""
+
+[Redis]
+  Addr = ""
+  Password = ""
+  DB = 0
