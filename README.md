@@ -1,5 +1,7 @@
 # Golang Web Developing Scaffold
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/nanmu42/go-web-scaffold)](https://goreportcard.com/report/github.com/nanmu42/go-web-scaffold)
+
 Yet another flavored scaffold to bootstrap new Go project, using Gin, zap, PostgreSQL, Redis.
 
 # Usage
