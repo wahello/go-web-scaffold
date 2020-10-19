@@ -91,7 +91,7 @@ func (con *Controller) LogMiddleware(c *gin.Context) {
 		zap.String("host", c.Request.Host),
 		zap.String("origin", c.Request.Header.Get("Origin")),
 		zap.String("path", c.Request.URL.Path),
-		zap.String("clientIP", c.Request.Header.Get("X-Forwarded-For")),
+		zap.String("clientIP", c.ClientIP()),
 		zap.String("UA", c.Request.UserAgent()),
 		zap.Int("status", c.Writer.Status()),
 		zap.Duration("lapse", time.Since(startedAt)),
