@@ -9,11 +9,18 @@ import (
 	"go.uber.org/zap"
 )
 
+const ctxSkipLoggingKey = "skipLogging"
+
 // Controller is where http logic lives
 type Controller struct {
 	L   *zap.Logger
 	D   *database.DB
 	Red *cache.Red
+}
+
+//skipLogging marks when we don't want logging
+func skipLogging(c *gin.Context) {
+	c.Set(ctxSkipLoggingKey, true)
 }
 
 // Hello says hello world,

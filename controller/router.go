@@ -110,3 +110,24 @@ func newServer(opt ServerOpt, handler http.Handler) (server *http.Server) {
 
 	return
 }
+
+// serveFileWhenNotFound tries to serve static file when there is no
+// matched route to API.
+func serveFileWhenNotFound(root string) func(c *gin.Context) {
+	staticHandler := http.FileServer(gin.Dir(root, false))
+
+	return func(c *gin.Context) {
+		if c.Request.Method == http.MethodGet ||
+			c.Request.Method == http.MethodHead {
+			skipLogging(c)
+			staticHandler.ServeHTTP(c.Writer, c.Request)
+			return
+		}
+
+		c.PureJSON(http.StatusNotFound, R{
+			Code: http.StatusNotFound,
+			Msg:  http.StatusText(http.StatusNotFound),
+			Data: nil,
+		})
+	}
+}

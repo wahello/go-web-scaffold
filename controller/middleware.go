@@ -32,6 +32,7 @@ func (con *Controller) RecoveryMiddleware(c *gin.Context) {
 				zap.String("path", c.Request.URL.Path),
 				zap.String("remoteAddr", c.ClientIP()),
 				zap.String("UA", c.Request.UserAgent()),
+				zap.Strings("errors", c.Errors.Errors()),
 			)
 
 			if !c.Writer.Written() {
@@ -84,12 +85,18 @@ func (con *Controller) LogMiddleware(c *gin.Context) {
 
 	c.Next()
 
+	// sometimes we just don't want log
+	if c.GetBool(ctxSkipLoggingKey) {
+		return
+	}
+
 	logger := con.L
 
 	logger.Info("APIAuditLog",
 		zap.String("method", c.Request.Method),
 		zap.String("host", c.Request.Host),
 		zap.String("origin", c.Request.Header.Get("Origin")),
+		zap.String("referer", c.Request.Referer()),
 		zap.String("path", c.Request.URL.Path),
 		zap.String("clientIP", c.ClientIP()),
 		zap.String("UA", c.Request.UserAgent()),
