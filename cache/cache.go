@@ -3,8 +3,6 @@ package cache
 import (
 	"context"
 	"fmt"
-	"time"
-
 	"github.com/go-redis/redis/v8"
 )
 
@@ -21,15 +19,13 @@ type Red struct {
 }
 
 // NewRedisClient create new redis client via config
-func NewRedisClient(config RedisConfig) (*Red, error) {
+func NewRedisClient(ctx context.Context, config RedisConfig) (*Red, error) {
 	client := redis.NewClient(&redis.Options{
 		Addr:     config.Addr,
 		Password: config.Password,
 		DB:       config.DB,
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
-	defer cancel()
 	err := client.Ping(ctx).Err()
 	if err != nil {
 		err = fmt.Errorf("redis PING: %w", err)

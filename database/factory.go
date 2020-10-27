@@ -1,6 +1,8 @@
 package database
 
 import (
+	"context"
+	"fmt"
 	"github.com/go-pg/pg/v10"
 	"telescope/version"
 )
@@ -20,8 +22,8 @@ type DB struct {
 }
 
 // NewDatabase connect to database
-func NewDatabase(dsn Config) (db *DB, err error) {
-	PG := pg.Connect(&pg.Options{
+func NewDatabase(ctx context.Context, dsn Config) (db *DB, err error) {
+	postgres := pg.Connect(&pg.Options{
 		Addr:            dsn.Host,
 		User:            dsn.User,
 		Password:        dsn.Password,
@@ -29,8 +31,14 @@ func NewDatabase(dsn Config) (db *DB, err error) {
 		ApplicationName: version.FullName,
 	})
 
+	err = postgres.Ping(ctx)
+	if err != nil {
+		err = fmt.Errorf("postgres.Ping: %w", err)
+		return
+	}
+
 	db = &DB{
-		PG: PG,
+		PG: postgres,
 	}
 
 	return

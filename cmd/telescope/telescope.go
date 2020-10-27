@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"telescope/controller"
 	"telescope/database"
 	"telescope/version"
+	"time"
 
 	"github.com/BurntSushi/toml"
 	"go.uber.org/zap"
@@ -56,10 +58,13 @@ func main() {
 
 	logger.Info("starting...", zap.String("version", version.FullNameWithBuildDate))
 
+	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
+	defer cancel()
+
 	logger.Info("connecting to database...",
 		zap.String("host", config.Database.Host),
 		zap.String("db", config.Database.DatabaseName))
-	db, err := database.NewDatabase(config.Database)
+	db, err := database.NewDatabase(ctx, config.Database)
 	if err != nil {
 		err = fmt.Errorf("database.NewDatabase: %w", err)
 		return
@@ -68,7 +73,7 @@ func main() {
 	logger.Info("database connected")
 
 	logger.Info("connecting to Redis...")
-	redCache, err := cache.NewRedisClient(config.Redis)
+	redCache, err := cache.NewRedisClient(ctx, config.Redis)
 	if err != nil {
 		err = fmt.Errorf("cache.NewRedisClient: %w", err)
 		return
