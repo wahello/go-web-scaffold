@@ -16,5 +16,5 @@ telescope: telescope.bin
 
 %.bin: dir
 	cd cmd/$* && \
-	go build -tags=jsoniter -trimpath -ldflags "-s -w -X telescope/version.Version=$(VERSION) -X telescope/version.BuildDate=$(BUILD)" && \
+	go build -trimpath -ldflags "-s -w -X telescope/version.Version=$(VERSION) -X telescope/version.BuildDate=$(BUILD)" && \
 	cp $* $(PWD)/bin/$*
