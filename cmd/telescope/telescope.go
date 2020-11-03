@@ -20,6 +20,10 @@ var (
 	configPath = flag.String("config", "config/telescope.toml", "path to config file")
 )
 
+func init() {
+	version.SetSubName("API")
+}
+
 func main() {
 	flag.Parse()
 

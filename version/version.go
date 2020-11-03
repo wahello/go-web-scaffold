@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	// Name Program name
+	// Name Program set name
 	Name = "telescope"
 )
 
@@ -16,6 +16,8 @@ var (
 	Version = "delve"
 	// BuildDate build date
 	BuildDate = "unknown-build-date"
+	// subName name specific to a command
+	subName string
 )
 
 // The following value is initialized when program starts
@@ -29,8 +31,28 @@ var (
 	StartedAt time.Time
 )
 
-func init() {
+// SubName command name
+func SubName() string {
+	return subName
+}
+
+func SetSubName(newSubName string) {
+	subName = newSubName
+	updateFullNames()
+}
+
+func updateFullNames() {
+	if subName != "" {
+		FullName = fmt.Sprintf("%s-%s %s", Name, subName, Version)
+		FullNameWithBuildDate = fmt.Sprintf("%s-%s %s (%s)", Name, subName, Version, BuildDate)
+		return
+	}
+
 	FullName = fmt.Sprintf("%s %s", Name, Version)
 	FullNameWithBuildDate = fmt.Sprintf("%s %s (%s)", Name, Version, BuildDate)
+}
+
+func init() {
 	StartedAt = time.Now()
+	updateFullNames()
 }
