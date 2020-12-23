@@ -2,12 +2,13 @@ package cache
 
 import (
 	"bytes"
-	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
 	"sync"
 	"time"
+
+	"github.com/klauspost/compress/gzip"
 
 	"github.com/ugorji/go/codec"
 )
@@ -47,7 +48,7 @@ Cache Aside Pattern
 // dest must be a pointer type.
 //
 // when err is nil, a valid cache is obtained.
-func (red *Red) ReadCache(ctx context.Context,key string, dest interface{}) (err error) {
+func (red *Red) ReadCache(ctx context.Context, key string, dest interface{}) (err error) {
 	raw, err := red.ReadCacheBytes(ctx, key)
 	if err != nil {
 		err = fmt.Errorf("ReadCacheBytes: %w", err)
@@ -88,8 +89,8 @@ func (red *Red) UpdateCache(ctx context.Context, key string, payload interface{}
 	return
 }
 
-// RevokeQueryCache deletes cache by key
-func (red *Red) RevokeCache(ctx context.Context,key ...string) (err error) {
+// RevokeCache deletes cache by key
+func (red *Red) RevokeCache(ctx context.Context, key ...string) (err error) {
 	err = red.R.Unlink(ctx, key...).Err()
 	if err != nil {
 		err = fmt.Errorf("redis Unlink: %w", err)
@@ -105,13 +106,13 @@ func (red *Red) RevokeCache(ctx context.Context,key ...string) (err error) {
 //
 // This command does not guarantee atomic, but works well on
 // large key space.
-func (red *Red) RevokeCacheByPattern(ctx context.Context,patten string) (err error) {
+func (red *Red) RevokeCacheByPattern(ctx context.Context, patten string) (err error) {
 	var (
 		keys []string
 		i    int
 	)
 
-	iter := red.R.Scan(ctx,0, patten, 0).Iterator()
+	iter := red.R.Scan(ctx, 0, patten, 0).Iterator()
 	for iter.Next(ctx) {
 		keys = append(keys, iter.Val())
 
@@ -120,7 +121,7 @@ func (red *Red) RevokeCacheByPattern(ctx context.Context,patten string) (err err
 		if i > 1000 {
 			i = 0
 
-			err = red.R.Unlink(ctx,keys...).Err()
+			err = red.R.Unlink(ctx, keys...).Err()
 			if err != nil {
 				err = fmt.Errorf("redis Unlink in scan loop: %w", err)
 				return
@@ -137,7 +138,7 @@ func (red *Red) RevokeCacheByPattern(ctx context.Context,patten string) (err err
 	}
 
 	if len(keys) > 0 {
-		err = red.R.Unlink(ctx,keys...).Err()
+		err = red.R.Unlink(ctx, keys...).Err()
 		if err != nil {
 			err = fmt.Errorf("redis Unlink after scan finish: %w", err)
 			return
@@ -175,7 +176,7 @@ func isGzipped(b []byte) bool {
 
 // ReadCacheBytes read bytes cache from cache,
 // decompress if in need.
-func (red *Red) ReadCacheBytes(ctx context.Context,key string) (b []byte, err error) {
+func (red *Red) ReadCacheBytes(ctx context.Context, key string) (b []byte, err error) {
 	raw, err := red.R.Get(ctx, key).Bytes()
 	if err != nil {
 		err = fmt.Errorf("redis GET: %w", err)
@@ -246,7 +247,11 @@ func (red *Red) UpdateCacheBytes(ctx context.Context, key string, payload []byte
 	}
 
 	// flush gzipped content
-	writer.Close()
+	err = writer.Close()
+	if err != nil {
+		err = fmt.Errorf("gzip writer.Close: %w", err)
+		return
+	}
 	err = red.R.Set(ctx, key, buf.Bytes(), expiration).Err()
 	if err != nil {
 		err = fmt.Errorf("redis SET gzipped: %w", err)
@@ -255,6 +260,3 @@ func (red *Red) UpdateCacheBytes(ctx context.Context, key string, payload []byte
 
 	return
 }
-
-
-
