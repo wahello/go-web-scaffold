@@ -32,15 +32,16 @@ func NewServer(opt ServerOpt) (server *http.Server) {
 		Red: opt.Redis,
 	}
 	handler := newGin(control)
-	handler.Use(CORSMiddleware)
 
 	// register API route
 
 	// robots.txt
+	handler.HEAD("/robots.txt", control.RobotsTXT)
 	handler.GET("/robots.txt", control.RobotsTXT)
 
 	// health
 	group := handler.Group("/api")
+	group.HEAD("/hello", control.Hello)
 	group.GET("/hello", control.Hello)
 
 	server = newServer(opt, handler)
@@ -59,9 +60,9 @@ func newGin(con *Controller) (g *gin.Engine) {
 	g.Use(
 		con.RecoveryMiddleware,
 		gzip.DefaultHandler().Gin,
+		con.LimitReaderMiddleware,
 		con.LogMiddleware,
 		con.ErrorMiddleware,
-		con.LimitReaderMiddleware,
 	)
 
 	return

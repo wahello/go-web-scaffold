@@ -18,7 +18,7 @@ type Controller struct {
 	Red *cache.Red
 }
 
-//skipLogging marks when we don't want logging
+// skipLogging marks when we don't want logging
 func skipLogging(c *gin.Context) {
 	c.Set(ctxSkipLoggingKey, true)
 }
@@ -26,6 +26,11 @@ func skipLogging(c *gin.Context) {
 // Hello says hello world,
 // also stands for health check.
 func (con *Controller) Hello(c *gin.Context) {
+	skipLogging(c)
+	if c.Request.Method == http.MethodHead {
+		c.Status(http.StatusNoContent)
+		return
+	}
 	ok(c, "hello world!")
 }
 
@@ -48,6 +53,10 @@ func (con *Controller) MethodNotAllowed(c *gin.Context) {
 }
 
 func (con *Controller) RobotsTXT(c *gin.Context) {
+	if c.Request.Method == http.MethodHead {
+		c.Status(http.StatusNoContent)
+		return
+	}
 	c.String(http.StatusOK, `User-agent: *
 Disallow: /`)
 }

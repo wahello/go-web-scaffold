@@ -14,6 +14,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/nanmu42/gzip v1.1.0
 	github.com/segmentio/stats/v4 v4.6.0
+	github.com/signalsciences/ac v1.2.0
 	github.com/ugorji/go/codec v1.2.1
 	github.com/vmihailenco/msgpack/v5 v5.1.0 // indirect
 	go.uber.org/automaxprocs v1.3.0
