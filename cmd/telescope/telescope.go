@@ -67,14 +67,14 @@ func main() {
 	defer cancel()
 
 	logger.Info("connecting to database...",
-		zap.String("host", config.Database.Host),
-		zap.String("db", config.Database.DatabaseName))
-	db, err := database.NewDatabase(ctx, config.Database)
+		zap.String("host", config.Postgres.Host),
+		zap.String("db", config.Postgres.DatabaseName))
+	db, err := database.NewPostgres(ctx, config.Postgres)
 	if err != nil {
 		err = fmt.Errorf("database.NewDatabase: %w", err)
 		return
 	}
-	defer db.PG.Close() // nolint: errcheck
+	defer db.Close() // nolint: errcheck
 	logger.Info("database connected")
 
 	logger.Info("connecting to Redis...")
@@ -85,16 +85,17 @@ func main() {
 	}
 	logger.Info("Redis connected")
 
-	publicServer := controller.NewServer(controller.ServerOpt{
-		Port:     config.API.Port,
-		Logger:   logger,
-		Database: db,
-		Redis:    redCache,
+	server := controller.NewServer(controller.ServerOpt{
+		Port:          config.API.Port,
+		Logger:        logger,
+		Database:      db,
+		Redis:         redCache,
+		AuditResponse: config.API.AuditResponse,
 	})
 
 	logger.Info("public API service is starting", zap.Int("port", config.API.Port))
 
-	err = publicServer.ListenAndServe()
+	err = server.ListenAndServe()
 	if err == http.ErrServerClosed {
 		err = nil
 	} else if err != nil {

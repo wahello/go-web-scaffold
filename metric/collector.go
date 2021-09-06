@@ -2,7 +2,9 @@ package metric
 
 import (
 	"io"
+	"math"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/segmentio/stats/v4"
@@ -13,19 +15,30 @@ import (
 // listeningAddr address where metric server listening
 const listeningAddr = ":2000"
 
-// Collector collects and reports metrics, use factory functions to create
+const sep = "."
+
+// DefaultSecondBuckets good for API timing
+var DefaultSecondBuckets = []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10}
+
+// DefaultByteBuckets good for data size
+var DefaultByteBuckets = []float64{1 << 10, 5 << 10, 10 << 10, 25 << 10, 50 << 10, 100 << 10, 250 << 10, 500 << 10, 1 << 20, 2 << 20, 5 << 20}
+
+// Collector use factory functions to create
 type Collector struct {
 	engine                *stats.Engine
 	handler               *prometheus.Handler
 	processStatsCollector io.Closer
 }
 
-// NewPrometheusCollector creates a Prometheus-based Collector
-func NewPrometheusCollector(prefix string, collectProcessStats bool, tag ...stats.Tag) *Collector {
+// HistogramBuckets no need to provide +Inf explicitly
+type HistogramBuckets map[string][]float64
+
+// NewPrometheusCollector creates a Collector based on Promethues.
+func NewPrometheusCollector(prefix string, buckets HistogramBuckets, collectProcessStats bool, tag ...stats.Tag) *Collector {
 	handler := &prometheus.Handler{
 		TrimPrefix:    "",
-		MetricTimeout: 1 * time.Minute,
-		Buckets:       stats.HistogramBuckets{},
+		MetricTimeout: 15 * time.Minute,
+		Buckets:       newHistogramBuckets(prefix, buckets),
 	}
 
 	engine := stats.NewEngine(prefix, handler)
@@ -126,4 +139,41 @@ func (c *Collector) Report(metrics interface{}, tags ...stats.Tag) {
 		return
 	}
 	c.engine.Report(metrics, tags...)
+}
+
+func newHistogramBuckets(prefix string, buckets HistogramBuckets) (product stats.HistogramBuckets) {
+	if len(buckets) == 0 {
+		product = stats.HistogramBuckets{}
+		return
+	}
+
+	product = make(stats.HistogramBuckets, len(buckets))
+	for k, v := range buckets {
+		values := make([]stats.Value, 0, len(v)+1)
+		for _, item := range v {
+			values = append(values, stats.ValueOf(item))
+		}
+		values = append(values, stats.ValueOf(math.Inf(1)))
+		product[newStatsKey(prefix, k)] = values
+	}
+
+	return
+}
+
+func newStatsKey(prefix, name string) (key stats.Key) {
+	var word = name
+	if prefix != "" {
+		word = prefix + sep + word
+	}
+
+	sepIdx := strings.LastIndex(word, sep)
+	if sepIdx == -1 {
+		key.Field = word
+		return
+	}
+
+	key.Measure = word[:sepIdx]
+	key.Field = word[sepIdx+1:]
+
+	return
 }

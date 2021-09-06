@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"syscall"
 	"telescope/cache"
 	"telescope/database"
 	"time"
@@ -18,22 +17,28 @@ import (
 
 // ServerOpt options to start a new server
 type ServerOpt struct {
-	Port     int
-	Logger   *zap.Logger
-	Database *database.DB
-	Redis    *cache.Red
+	Port          int
+	Logger        *zap.Logger
+	Database      *database.DB
+	Redis         *cache.Red
+	AuditResponse bool
 }
 
 // NewServer fires a new server
 func NewServer(opt ServerOpt) (server *http.Server) {
 	control := &Controller{
-		L:   opt.Logger.With(zap.String("side", "public")),
-		D:   opt.Database,
-		Red: opt.Redis,
+		L:             opt.Logger,
+		D:             opt.Database,
+		Red:           opt.Redis,
+		AuditResponse: opt.AuditResponse,
 	}
 	handler := newGin(control)
 
 	// register API route
+
+	// index page
+	handler.HEAD("/", control.IndexPage)
+	handler.GET("/", control.IndexPage)
 
 	// robots.txt
 	handler.HEAD("/robots.txt", control.RobotsTXT)
@@ -60,8 +65,9 @@ func newGin(con *Controller) (g *gin.Engine) {
 	g.Use(
 		con.RecoveryMiddleware,
 		gzip.DefaultHandler().Gin,
-		con.LimitReaderMiddleware,
+		con.LimitReaderMiddleware(maxRequestBodySize),
 		con.LogMiddleware,
+		con.PayloadAuditLogMiddleware(),
 		con.ErrorMiddleware,
 	)
 
@@ -77,14 +83,7 @@ func newServer(opt ServerOpt, handler http.Handler) (server *http.Server) {
 
 	go func() {
 		quit := make(chan os.Signal, 1)
-		// kill (no param) default send syscall.SIGTERM
-		// kill (no param) default send syscall.SIGTERM
-		// kill -2 is syscall.SIGINT
-		// kill -9 is syscall.SIGKILL but can't be catch, so don't need add it
-		//
-		// It is allowed to call Notify multiple times with different channels and the same signals:
-		// each channel receives copies of incoming signals independently.
-		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+		signal.Notify(quit, os.Interrupt)
 		received := <-quit
 		opt.Logger.Info("received signal, exiting...",
 			zap.String("signal", received.String()),

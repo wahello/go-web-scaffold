@@ -4,4 +4,6 @@ package controller
 type Config struct {
 	// port which service is listening on
 	Port int
+	// record response body
+	AuditResponse bool
 }

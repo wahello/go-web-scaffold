@@ -1,12 +1,12 @@
-FROM golang:alpine3.12 as golang
+FROM golang:1-alpine3.14 as golang
 RUN apk --no-cache add make git zip tzdata ca-certificates nodejs npm gcc musl-dev
 WORKDIR /app
 COPY . .
 RUN make
 
-FROM alpine:3.12
+FROM alpine:3.14
 # Dependencies
-RUN apk --no-cache add tzdata ca-certificates
+RUN apk --no-cache add tzdata ca-certificates musl
 # where application lives
 WORKDIR /app
 # Copy the products
