@@ -25,7 +25,7 @@ type ServerOpt struct {
 }
 
 // NewServer fires a new server
-func NewServer(opt ServerOpt) (server *http.Server) {
+func NewServer(opt ServerOpt) (server *GracefulServer) {
 	control := &Controller{
 		L:             opt.Logger,
 		D:             opt.Database,
@@ -74,39 +74,73 @@ func newGin(con *Controller) (g *gin.Engine) {
 	return
 }
 
-// newServer returns a server with graceful shutdown
-func newServer(opt ServerOpt, handler http.Handler) (server *http.Server) {
-	server = &http.Server{
-		Addr:    fmt.Sprintf(":%d", opt.Port),
-		Handler: handler,
+type GracefulServer struct {
+	server *http.Server
+	logger *zap.Logger
+	closed chan struct{}
+}
+
+func (s *GracefulServer) watchSignal() {
+	const gracefulStopTimeout = 10 * time.Second
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt)
+	received := <-quit
+	s.logger.Info("received signal, exiting...",
+		zap.String("signal", received.String()),
+		zap.String("addr", s.server.Addr),
+	)
+
+	defer func() {
+		close(s.closed)
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), gracefulStopTimeout)
+	defer cancel()
+
+	err := s.server.Shutdown(ctx)
+	if err != nil {
+		err = fmt.Errorf("server.Shutdown: %w", err)
+		s.logger.Error("graceful shutdown failed.",
+			zap.Error(err),
+			zap.String("addr", s.server.Addr),
+		)
+		return
 	}
 
-	go func() {
-		quit := make(chan os.Signal, 1)
-		signal.Notify(quit, os.Interrupt)
-		received := <-quit
-		opt.Logger.Info("received signal, exiting...",
-			zap.String("signal", received.String()),
-			zap.Int("port", opt.Port),
-		)
+	s.logger.Info("API service exits successfully.",
+		zap.String("addr", s.server.Addr),
+	)
+}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
+func (s *GracefulServer) ListenAndServe() (err error) {
+	err = s.server.ListenAndServe()
+	if err != http.ErrServerClosed {
+		err = fmt.Errorf("server stopped unexpectedly: %w", err)
+		return
+	}
 
-		shutdownErr := server.Shutdown(ctx)
-		if shutdownErr != nil {
-			shutdownErr = fmt.Errorf("server.Shutdown: %w", shutdownErr)
-			opt.Logger.Error("graceful shutdown failed.",
-				zap.Error(shutdownErr),
-				zap.Int("port", opt.Port),
-			)
-			return
-		}
+	// ListenAndServe always returns a non-nil error.
+	// After Shutdown or Close, the returned error is ErrServerClosed.
+	err = nil
 
-		opt.Logger.Info("API service exits successfully.",
-			zap.Int("port", opt.Port),
-		)
-	}()
+	<-s.closed
+
+	return
+}
+
+// newServer returns a server with graceful shutdown
+func newServer(opt ServerOpt, handler http.Handler) (server *GracefulServer) {
+	server = &GracefulServer{
+		server: &http.Server{
+			Addr:    fmt.Sprintf(":%d", opt.Port),
+			Handler: handler,
+		},
+		logger: opt.Logger,
+		closed: make(chan struct{}),
+	}
+
+	go server.watchSignal()
 
 	return
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"net/http"
 	"telescope/cache"
 	"telescope/controller"
 	"telescope/database"
@@ -96,10 +95,7 @@ func main() {
 	logger.Info("public API service is starting", zap.Int("port", config.API.Port))
 
 	err = server.ListenAndServe()
-	if err == http.ErrServerClosed {
-		err = nil
-	} else if err != nil {
-		err = fmt.Errorf("server stopped unexpectedly: %w", err)
+	if err != nil {
 		return
 	}
 }
