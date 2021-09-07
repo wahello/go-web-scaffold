@@ -91,9 +91,7 @@ func (s *GracefulServer) watchSignal() {
 		zap.String("addr", s.server.Addr),
 	)
 
-	defer func() {
-		close(s.closed)
-	}()
+	defer close(s.closed)
 
 	ctx, cancel := context.WithTimeout(context.Background(), gracefulStopTimeout)
 	defer cancel()
@@ -108,7 +106,7 @@ func (s *GracefulServer) watchSignal() {
 		return
 	}
 
-	s.logger.Info("API service exits successfully.",
+	s.logger.Info("API service exited successfully.",
 		zap.String("addr", s.server.Addr),
 	)
 }
