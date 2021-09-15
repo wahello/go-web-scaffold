@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 	"telescope/cache"
 	"telescope/database"
 	"time"
@@ -84,7 +85,8 @@ func (s *GracefulServer) watchSignal() {
 	const gracefulStopTimeout = 10 * time.Second
 
 	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt)
+	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
+
 	received := <-quit
 	s.logger.Info("received signal, exiting...",
 		zap.String("signal", received.String()),
