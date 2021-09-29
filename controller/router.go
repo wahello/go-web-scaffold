@@ -27,9 +27,9 @@ type ServerOpt struct {
 // NewServer fires a new server
 func NewServer(opt ServerOpt) (server *GracefulServer) {
 	control := &Controller{
-		L:             opt.Logger,
-		D:             opt.Database,
-		Red:           opt.Redis,
+		Logger:        opt.Logger,
+		DB:            opt.Database,
+		Cache:         opt.Redis,
 		AuditResponse: opt.AuditResponse,
 	}
 	handler := newGin(control)

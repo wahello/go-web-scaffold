@@ -24,9 +24,9 @@ const (
 
 // Controller is where http logic lives
 type Controller struct {
-	L             *zap.Logger
-	D             *database.DB
-	Red           *cache.Cache
+	Logger        *zap.Logger
+	DB            *database.DB
+	Cache         *cache.Cache
 	AuditResponse bool
 }
 

@@ -30,7 +30,7 @@ func (con *Controller) RecoveryMiddleware(c *gin.Context) {
 		if err := recover(); err != nil {
 			stack := string(debug.Stack())
 
-			con.L.Error("panic recovered!",
+			con.Logger.Error("panic recovered!",
 				zap.Any("panic", err),
 				zap.String("stack", stack),
 				zap.String("method", c.Request.Method),
@@ -98,7 +98,7 @@ func (con *Controller) LogMiddleware(c *gin.Context) {
 
 	latency := time.Since(startedAt)
 
-	logger := con.L
+	logger := con.Logger
 	if reqBody, ok := c.Get(ctxRequestAuditKey); ok {
 		logger = logger.With(zap.Stringp("requestBody", reqBody.(*string)))
 	}
