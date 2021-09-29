@@ -20,7 +20,7 @@ type ServerOpt struct {
 	Port          int
 	Logger        *zap.Logger
 	Database      *database.DB
-	Redis         *cache.Red
+	Redis         *cache.Cache
 	AuditResponse bool
 }
 

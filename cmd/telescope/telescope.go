@@ -77,7 +77,7 @@ func main() {
 	logger.Info("database connected")
 
 	logger.Info("connecting to Redis...")
-	redCache, err := cache.NewRedisClient(ctx, config.Redis)
+	cache, err := cache.NewRedisClient(ctx, config.Redis)
 	if err != nil {
 		err = fmt.Errorf("cache.NewRedisClient: %w", err)
 		return
@@ -88,7 +88,7 @@ func main() {
 		Port:          config.API.Port,
 		Logger:        logger,
 		Database:      db,
-		Redis:         redCache,
+		Redis:         cache,
 		AuditResponse: config.API.AuditResponse,
 	})
 

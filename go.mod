@@ -19,9 +19,8 @@ require (
 	github.com/segmentio/stats/v4 v4.6.3
 	github.com/signalsciences/ac v1.2.0
 	github.com/stretchr/testify v1.7.0
-	github.com/ugorji/go/codec v1.2.6
 	github.com/valyala/bytebufferpool v1.0.0
-	github.com/vmihailenco/msgpack/v5 v5.3.4 // indirect
+	github.com/vmihailenco/msgpack/v5 v5.3.4
 	go.uber.org/atomic v1.9.0
 	go.uber.org/automaxprocs v1.4.0
 	go.uber.org/multierr v1.7.0 // indirect
@@ -70,6 +69,7 @@ require (
 	github.com/segmentio/fasthash v0.0.0-20180216231524-a72b379d632e // indirect
 	github.com/sirupsen/logrus v1.4.2 // indirect
 	github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc // indirect
+	github.com/ugorji/go/codec v1.2.6 // indirect
 	github.com/vmihailenco/bufpool v0.1.11 // indirect
 	github.com/vmihailenco/tagparser v0.1.2 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect

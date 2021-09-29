@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"fmt"
+
 	"github.com/go-redis/redis/v8"
 )
 
@@ -13,13 +14,13 @@ type RedisConfig struct {
 	DB       int
 }
 
-// Red is a holder for Redis and cache methods
-type Red struct {
-	R *redis.Client
+// Cache is a holder for Redis and cache methods
+type Cache struct {
+	Redis *redis.Client
 }
 
 // NewRedisClient create new redis client via config
-func NewRedisClient(ctx context.Context, config RedisConfig) (*Red, error) {
+func NewRedisClient(ctx context.Context, config RedisConfig) (*Cache, error) {
 	client := redis.NewClient(&redis.Options{
 		Addr:     config.Addr,
 		Password: config.Password,
@@ -32,7 +33,7 @@ func NewRedisClient(ctx context.Context, config RedisConfig) (*Red, error) {
 		return nil, err
 	}
 
-	return &Red{
-		R: client,
+	return &Cache{
+		Redis: client,
 	}, nil
 }

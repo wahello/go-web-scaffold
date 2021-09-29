@@ -26,7 +26,7 @@ const (
 type Controller struct {
 	L             *zap.Logger
 	D             *database.DB
-	Red           *cache.Red
+	Red           *cache.Cache
 	AuditResponse bool
 }
 

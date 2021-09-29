@@ -8,32 +8,19 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vmihailenco/msgpack/v5"
+
 	"github.com/klauspost/compress/gzip"
-
-	"github.com/ugorji/go/codec"
 )
 
-const (
-	// compressThreshold gzip content larger than 4 KiB
-	compressThreshold = 4 * 1024
-	// gzip read buffer size
-	readBufferSize = 32 * 1024
-)
+// compressThreshold gzip content larger than 4 KiB
+const compressThreshold = 4 * 1024
 
 // Pool for gzip writers and readers
 var (
-	gwriters    sync.Pool
-	greaders    sync.Pool
-	readBuffers sync.Pool
+	gwriters sync.Pool
+	greaders sync.Pool
 )
-
-var msgpackHandle = new(codec.MsgpackHandle)
-
-func init() {
-	readBuffers.New = func() interface{} {
-		return make([]byte, readBufferSize)
-	}
-}
 
 /*
 Cache Aside Pattern
@@ -43,20 +30,19 @@ Cache Aside Pattern
 * update: after origin updates, revoke(delete) the cache.
 */
 
-// ReadCache reads cache content which is set by UpdateCache
+// Read reads cache content which is set by Update
 //
 // dest must be a pointer type.
 //
 // when err is nil, a valid cache is obtained.
-func (red *Red) ReadCache(ctx context.Context, key string, dest interface{}) (err error) {
-	raw, err := red.ReadCacheBytes(ctx, key)
+func (red *Cache) Read(ctx context.Context, key string, dest interface{}) (err error) {
+	raw, err := red.ReadBytes(ctx, key)
 	if err != nil {
-		err = fmt.Errorf("ReadCacheBytes: %w", err)
+		err = fmt.Errorf("ReadBytes: %w", err)
 		return
 	}
 
-	decoder := codec.NewDecoderBytes(raw, msgpackHandle)
-	err = decoder.Decode(dest)
+	err = msgpack.Unmarshal(raw, dest)
 	if err != nil {
 		err = fmt.Errorf("msgpack decoding: %w", err)
 		return
@@ -65,33 +51,30 @@ func (red *Red) ReadCache(ctx context.Context, key string, dest interface{}) (er
 	return
 }
 
-// UpdateCache writes cache content which can be read by ReadCache()
+// Update writes cache content which can be read by Read()
 //
-// If payload is a string, use UpdateCacheBytes()
+// If payload is a string, use UpdateBytes()
 //
 // Set durationSeconds to 0 to make this key never expires
-func (red *Red) UpdateCache(ctx context.Context, key string, payload interface{}, expiration time.Duration) (err error) {
-	var buf []byte
-
-	encoder := codec.NewEncoderBytes(&buf, msgpackHandle)
-	err = encoder.Encode(payload)
+func (red *Cache) Update(ctx context.Context, key string, payload interface{}, expiration time.Duration) (err error) {
+	buf, err := msgpack.Marshal(payload)
 	if err != nil {
 		err = fmt.Errorf("msgpack encode: %w", err)
 		return
 	}
 
-	err = red.UpdateCacheBytes(ctx, key, buf, expiration)
+	err = red.UpdateBytes(ctx, key, buf, expiration)
 	if err != nil {
-		err = fmt.Errorf("UpdateCacheBytes: %w", err)
+		err = fmt.Errorf("UpdateBytes: %w", err)
 		return
 	}
 
 	return
 }
 
-// RevokeCache deletes cache by key
-func (red *Red) RevokeCache(ctx context.Context, key ...string) (err error) {
-	err = red.R.Unlink(ctx, key...).Err()
+// Revoke deletes cache by key
+func (red *Cache) Revoke(ctx context.Context, key ...string) (err error) {
+	err = red.Redis.Unlink(ctx, key...).Err()
 	if err != nil {
 		err = fmt.Errorf("redis Unlink: %w", err)
 		return
@@ -100,19 +83,19 @@ func (red *Red) RevokeCache(ctx context.Context, key ...string) (err error) {
 	return
 }
 
-// RevokeCacheByPattern deletes keys that matched by patten
+// RevokeByPattern deletes keys that matched by patten
 //
 // matching rule: https://redis.io/commands/keys
 //
 // This command does not guarantee atomic, but works well on
 // large key space.
-func (red *Red) RevokeCacheByPattern(ctx context.Context, patten string) (err error) {
+func (red *Cache) RevokeByPattern(ctx context.Context, patten string) (err error) {
 	var (
 		keys []string
 		i    int
 	)
 
-	iter := red.R.Scan(ctx, 0, patten, 0).Iterator()
+	iter := red.Redis.Scan(ctx, 0, patten, 0).Iterator()
 	for iter.Next(ctx) {
 		keys = append(keys, iter.Val())
 
@@ -121,7 +104,7 @@ func (red *Red) RevokeCacheByPattern(ctx context.Context, patten string) (err er
 		if i > 1000 {
 			i = 0
 
-			err = red.R.Unlink(ctx, keys...).Err()
+			err = red.Redis.Unlink(ctx, keys...).Err()
 			if err != nil {
 				err = fmt.Errorf("redis Unlink in scan loop: %w", err)
 				return
@@ -138,7 +121,7 @@ func (red *Red) RevokeCacheByPattern(ctx context.Context, patten string) (err er
 	}
 
 	if len(keys) > 0 {
-		err = red.R.Unlink(ctx, keys...).Err()
+		err = red.Redis.Unlink(ctx, keys...).Err()
 		if err != nil {
 			err = fmt.Errorf("redis Unlink after scan finish: %w", err)
 			return
@@ -174,10 +157,10 @@ func isGzipped(b []byte) bool {
 	return true
 }
 
-// ReadCacheBytes read bytes cache from cache,
+// ReadBytes read bytes cache from cache,
 // decompress if in need.
-func (red *Red) ReadCacheBytes(ctx context.Context, key string) (b []byte, err error) {
-	raw, err := red.R.Get(ctx, key).Bytes()
+func (red *Cache) ReadBytes(ctx context.Context, key string) (b []byte, err error) {
+	raw, err := red.Redis.Get(ctx, key).Bytes()
 	if err != nil {
 		err = fmt.Errorf("redis GET: %w", err)
 		return
@@ -205,13 +188,9 @@ func (red *Red) ReadCacheBytes(ctx context.Context, key string) (b []byte, err e
 	defer greaders.Put(reader)
 	defer reader.Close()
 
-	var (
-		dest bytes.Buffer
-		buf  = readBuffers.Get().([]byte)
-	)
-	defer readBuffers.Put(buf[:readBufferSize]) // nolint: staticcheck
+	var dest bytes.Buffer
 
-	_, err = io.CopyBuffer(&dest, reader, buf)
+	_, err = io.Copy(&dest, reader)
 	if err != nil {
 		err = fmt.Errorf("io.Copy: %w", err)
 		return
@@ -221,13 +200,13 @@ func (red *Red) ReadCacheBytes(ctx context.Context, key string) (b []byte, err e
 	return
 }
 
-// UpdateCacheBytes update cache with bytes payload
+// UpdateBytes update cache with bytes payload
 //
 // content may be compressed,
-// which can be fetched with ReadCacheBytes
-func (red *Red) UpdateCacheBytes(ctx context.Context, key string, payload []byte, expiration time.Duration) (err error) {
+// which can be fetched with ReadBytes
+func (red *Cache) UpdateBytes(ctx context.Context, key string, payload []byte, expiration time.Duration) (err error) {
 	if !shouldCompress(payload) {
-		return red.R.Set(ctx, key, payload, expiration).Err()
+		return red.Redis.Set(ctx, key, payload, expiration).Err()
 	}
 
 	var buf bytes.Buffer
@@ -252,7 +231,7 @@ func (red *Red) UpdateCacheBytes(ctx context.Context, key string, payload []byte
 		err = fmt.Errorf("gzip writer.Close: %w", err)
 		return
 	}
-	err = red.R.Set(ctx, key, buf.Bytes(), expiration).Err()
+	err = red.Redis.Set(ctx, key, buf.Bytes(), expiration).Err()
 	if err != nil {
 		err = fmt.Errorf("redis SET gzipped: %w", err)
 		return
