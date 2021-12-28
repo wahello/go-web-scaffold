@@ -62,6 +62,10 @@ func (con *Controller) ErrorMiddleware(c *gin.Context) {
 	if err == nil {
 		return
 	}
+	// abort if there's already a response body
+	if c.Writer.Written() {
+		return
+	}
 
 	var (
 		statusCode int
