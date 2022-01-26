@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 	"telescope/cache"
 	"telescope/controller"
 	"telescope/database"
@@ -39,6 +40,8 @@ func main() {
 			} else {
 				fmt.Println(err)
 			}
+
+			os.Exit(1)
 		}
 	}()
 
